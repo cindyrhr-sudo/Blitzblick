@@ -2,7 +2,6 @@
   "name": "Blitzblick: Das perfekte Hunderterfeld",
   "short_name": "Blitzblick",
   "lang": "de",
-  "start_url": "./blitzblick.html",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#1e3321",
