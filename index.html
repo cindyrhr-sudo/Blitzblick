@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1e3321">
+<title>Blitzblick: Das perfekte Hunderterfeld</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root { --wood: #5d4037; --wood-d: #2d1b18; }
+
+html, body { height: 100%; overflow: hidden; }
+body {
+  height: 100dvh; display: flex;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: radial-gradient(circle, #2e4d32, #1e3321);
+  user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; overscroll-behavior: none;
+}
+
+/* ---------- Bedienleiste: links (quer) oder unten (hochkant) ---------- */
+aside {
+  width: clamp(120px, 16vw, 180px); flex: none; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: max(10px, env(safe-area-inset-top)) 10px max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  background: linear-gradient(#3e2723, var(--wood-d));
+  border-right: 2px solid #1a0f0d;
+}
+.group { flex: 1 1 0; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.actions { flex: 0 0 auto; }
+h2 { font-size: .7rem; font-weight: 500; color: #c9b88f; text-align: center; letter-spacing: .08em; text-transform: uppercase; }
+
+button {
+  flex: 1 1 0; min-height: 40px; max-height: 56px; padding: 0 6px;
+  font: inherit; font-size: clamp(13px, 2vmin, 16px); font-weight: 500; color: #f3ece0;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 14px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: background .15s, transform .1s;
+}
+button:active { transform: scale(.96); }
+button.on { background: #3f9d63; border-color: #6fcf97; color: #fff; font-weight: 600; box-shadow: 0 0 0 2px rgba(111,207,151,.35); }
+
+.tempo button { max-height: 72px; }
+.emoji { font-size: clamp(1.7rem, 4vmin, 2.6rem); line-height: 1; }
+.tempo small { font-size: .72rem; opacity: .8; }
+
+.actions button { flex: none; min-height: 48px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; font-size: clamp(13px, 2vmin, 15px); }
+#new  { background: #e9b44c; border-color: #f3cf86; color: #3a2a10; }
+#show { background: #f3ece0; border-color: #fff; color: #2d1b18; }
+#show:disabled { opacity: .3; cursor: default; }
+
+/* Hochkant (Handy/iPad): Leiste unten, Gruppen als Zeilen */
+@media (orientation: portrait) {
+  body { flex-direction: column; }
+  aside {
+    order: 2; width: 100%; max-height: 42dvh; flex-direction: column; gap: 8px;
+    border-right: 0; border-top: 2px solid #1a0f0d;
+    padding: 10px max(10px, env(safe-area-inset-right)) max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+  }
+  .group { flex-direction: row; flex: none; }
+  h2 { display: none; }
+  button { min-height: 46px; }
+  .tempo button { flex-direction: column; gap: 2px; min-height: 62px; }
+}
+
+/* Niedrige Querformat-Bildschirme (Handy quer): zwei Spalten */
+@media (orientation: landscape) and (max-height: 520px) {
+  aside { width: clamp(220px, 34vw, 300px); display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; align-content: stretch; }
+  .actions { grid-column: 1 / -1; flex-direction: row; }
+  .actions button { flex: 1; min-height: 40px; }
+  button { min-height: 30px; }
+  .emoji { font-size: 1.3rem; }
+}
+
+/* ---------- Spielfläche ---------- */
+#stage {
+  flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center;
+  padding: 2vmin max(2vmin, env(safe-area-inset-right)) 2vmin 2vmin;
+}
+#num {
+  font-size: clamp(2.5rem, 13vmin, 9rem); line-height: 1.1; height: 1.1em; flex: none;
+  color: #f1c40f; font-weight: 900; text-shadow: 3px 5px 12px rgba(0,0,0,.6);
+}
+#num.hide { visibility: hidden; }
+
+/* Der Container misst den freien Platz; das Brett passt sich daran an */
+#area { flex: 1; width: 100%; min-height: 0; container-type: size; display: flex; align-items: center; justify-content: center; }
+
+#board {
+  /* --cw/--ch = Breite/Höhe in Punktgrößen (von JS gesetzt); 1.2 = Rand + Rahmen */
+  --d: min(calc(100cqw / (var(--cw) + 1.2)), calc(100cqh / (var(--ch) + 1.2)));
+  width: calc(var(--d) * (var(--cw) + .8));
+  padding: calc(var(--d) * .4);
+  display: grid; gap: calc(var(--d) * var(--gap));
+  grid-template-columns: repeat(5, var(--d)) calc(var(--d) * var(--mid)) repeat(5, var(--d));
+  grid-auto-rows: var(--d);
+  background: #fff; border-radius: calc(var(--d) * .6);
+  box-shadow: 0 0 0 calc(var(--d) * .25) var(--wood), 0 12px 40px rgba(0,0,0,.6);
+}
+#board.b100 { grid-template-rows: repeat(5, var(--d)) calc(var(--d) * var(--mid)) repeat(5, var(--d)); }
+
+.dot {
+  border-radius: 50%; border: calc(var(--d) * .05) solid #b2bec3;
+  background: radial-gradient(circle at 30% 30%, #fff, #d1d8e0);
+}
+.dot.red  { border: 0; background: radial-gradient(circle at 35% 35%, #d63031, #b71c1c 60%, #8b0000); }
+.dot.blue { border: 0; background: radial-gradient(circle at 35% 35%, #0e66b1, #0a4d87 60%, #073a66); }
+
+.ax { position: relative; }
+.ax.h::before, .ax.v::after { content: ""; position: absolute; background: #95a5a6; border-radius: 99px; }
+.ax.h::before { left: 0; right: 0; top: 50%; height: calc(var(--d) * .1); transform: translateY(-50%); }
+.ax.v::after  { top: 0; bottom: 0; left: 50%; width: calc(var(--d) * .1); transform: translateX(-50%); }
+</style>
+</head>
+<body>
+
+<aside id="menu">
+  <div class="group" data-k="mode">
+    <h2>Feld</h2>
+    <button data-v="10" class="on">10er</button>
+    <button data-v="20">20er</button>
+    <button data-v="30">30er</button>
+    <button data-v="100">100</button>
+    <button data-v="tens">Zehner</button>
+  </div>
+  <div class="group tempo" data-k="time">
+    <h2>Tempo</h2>
+    <button data-v="1500"><span class="emoji">🐌</span><small>1.5s</small></button>
+    <button data-v="1000" class="on"><span class="emoji">🐈</span><small>1.0s</small></button>
+    <button data-v="500"><span class="emoji">🐇</span><small>0.5s</small></button>
+    <button data-v="200"><span class="emoji">🦘</span><small>0.2s</small></button>
+  </div>
+  <div class="group actions">
+    <button id="show" disabled>Zeigen</button>
+    <button id="new">Neu</button>
+  </div>
+</aside>
+
+<div id="stage">
+  <div id="num" class="hide">0</div>
+  <div id="area"><div id="board"></div></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const board = $('board'), num = $('num'), showBtn = $('show');
+const cfg = { mode: '10', time: 1000 };
+let dots = [], n = 0, phase = 'idle', timer;
+
+const is100 = () => cfg.mode === '100' || cfg.mode === 'tens';
+const maxN  = () => is100() ? 100 : +cfg.mode;
+
+function build() {
+  clearTimeout(timer); phase = 'idle'; showBtn.disabled = true; num.classList.add('hide');
+  board.innerHTML = ''; dots = [];
+  board.className = is100() ? 'b100' : '';
+
+  // Größe in Punkt-Einheiten: Breite, Höhe, Abstand, Mittellücke
+  const big = is100(), gap = big ? .15 : .2, mid = big ? .3 : .5;
+  const rows = Math.ceil(maxN() / 10);
+  board.style.setProperty('--gap', gap);
+  board.style.setProperty('--mid', mid);
+  board.style.setProperty('--cw', 10 + mid + 10 * gap);
+  board.style.setProperty('--ch', big ? 10 + mid + 10 * gap : rows + (rows - 1) * gap);
+
+  const add = cls => { const e = document.createElement('div'); e.className = cls; board.appendChild(e); return e; };
+  if (big) {
+    for (let r = 0; r < 11; r++) for (let c = 0; c < 11; c++) {
+      if (r === 5 || c === 5) add('ax' + (r === 5 ? ' h' : '') + (c === 5 ? ' v' : ''));
+      else dots.push(add('dot'));
+    }
+  } else {
+    for (let i = 1; i <= maxN(); i++) {
+      dots.push(add('dot'));
+      if (i % 10 === 5) add('');           // Lücke nach 5 Punkten
+    }
+  }
+}
+
+function paint(on) {
+  dots.forEach((d, i) => {
+    const row = Math.floor(i / 10), col = i % 10;
+    const blue = is100() ? (row < 5 ? col >= 5 : col < 5) : col >= 5;
+    d.className = 'dot' + (on && i < n ? (blue ? ' blue' : ' red') : '');
+  });
+}
+
+function newTask() {
+  clearTimeout(timer);
+  num.classList.add('hide'); showBtn.disabled = true;
+  n = cfg.mode === 'tens' ? (Math.floor(Math.random() * 10) + 1) * 10
+                          : Math.floor(Math.random() * maxN()) + 1;
+  num.textContent = n; phase = 'blitz'; paint(true);
+  timer = setTimeout(() => { paint(false); showBtn.disabled = false; phase = 'hidden'; }, cfg.time);
+}
+
+function toggleReveal() {
+  const show = phase === 'hidden';
+  if (!show && phase !== 'shown') return;
+  paint(show); num.classList.toggle('hide', !show);
+  phase = show ? 'shown' : 'hidden';
+}
+
+$('menu').addEventListener('click', e => {
+  const b = e.target.closest('.group[data-k] button');
+  if (!b) return;
+  const g = b.parentElement;
+  g.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+  cfg[g.dataset.k] = g.dataset.k === 'time' ? +b.dataset.v : b.dataset.v;
+  if (g.dataset.k === 'mode') build();
+});
+$('new').onclick = newTask;
+showBtn.onclick = toggleReveal;
+
+build();
+</script>
+</body>
+</html>
